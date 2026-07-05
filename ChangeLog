@@ -1,5 +1,14 @@
 Unreleased (private fork fixes)
 ================================
+- fix balls resting in a pocket jaw (or against a rail) jumping ~1cm to a
+  new position between shots: at the shot->next-turn transition
+  all_balls_free_place() relocated any ball whose center failed
+  in_table_region(), but a ball legally hanging in a pocket mouth (cushion
+  cut away) or touching a cushion sits at/past that boundary.
+  ball_free_place() now keeps the settled position and only relocates a ball
+  that actually overlaps another ball (cue-ball-in-hand placement unchanged);
+  pocketing/out-of-bounds are already handled by ball_in_hole /
+  remove_balls_from_game
 - fix segfault when choosing "Restart Game" from the in-game menu:
   menu_new() never initialized menuEntry->parent_entry, so menu_choose()
   dereferenced an uninitialized/garbage pointer for any ID-type entry

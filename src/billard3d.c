@@ -2968,6 +2968,28 @@ static void ball_free_place( int ind, BallsType * pballs )
         x=pballs->ball[ind].r.x; y=pballs->ball[ind].r.y;
         x0=x;
         y0=y;
+
+        /* A ball resting in the jaws of a pocket legitimately has its center
+         * outside in_table_region() (the cushion is cut away at the pocket
+         * mouth). Pocketing and out-of-bounds cases are already handled by the
+         * physics (ball_in_hole / remove_balls_from_game), so a ball that is
+         * still in_game after settling is at a legal position. Unless it
+         * actually overlaps another ball - or it is the cue ball being placed
+         * in-hand - keep the position the simulation produced; otherwise the
+         * ball visibly jumps between shots. */
+        if( !( ind==CUE_BALL_IND && player[act_player].place_cue_ball ) ){
+            exitloop=1;
+            for(i=0;i<pballs->nr;i++) if( i!=ind && pballs->ball[i].in_game ){
+                if ( vec_abs(vec_diff(vec_xyz(x0,y0,0),pballs->ball[i].r)) <
+                     (pballs->ball[ind].d+pballs->ball[i].d)/2.0 )
+                {
+                    exitloop=0;
+                    break;
+                }
+            }
+            if( exitloop ) return;
+        }
+
         phi=0.0;
 
         do{
