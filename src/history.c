@@ -125,7 +125,7 @@ void file_tournament_history( struct TournamentState_ * ts, char *winner, enum g
    char historyfile[1024];  // no file with directory should be longer
    char newfile[1024];      // no file with directory should be longer
    char checkstring[2048];  // no entry inside the history-file should be longer
-   char datestring[25];
+   char datestring[40];
    char gameid[200];
    time_t rawtime;
    struct tm * timeinfo;
@@ -193,7 +193,7 @@ void file_history(char *player1, char *player2, char *winner, int hits, int roun
    char historyfile[1024];  // no file with directory should be longer
    char newfile[1024];      // no file with directory should be longer
    char checkstring[2048];  // no entry inside the history-file should be longer
-  	char datestring[25];
+  	char datestring[40];
    time_t rawtime;
    struct tm * timeinfo;
 

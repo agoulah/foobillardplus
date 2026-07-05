@@ -1238,7 +1238,7 @@ static void play_network(void)
      }
   } // active_game end
 
- if(net_id!=NULL && !wait_seconds) {  // timer runs but wait-time over
+ if(net_id!=0 && !wait_seconds) {  // timer runs but wait-time over
     //no connect in network game - cancel all
     //fprintf(stderr,"Network closing\n");
     displaystring (localeText[261]);
@@ -4295,7 +4295,7 @@ void DisplayFunc( void )
              	  roundcounter++;
 #ifdef NETWORKING
                 // change the network player
-                if(active_net_timer!=NULL) {
+                if(active_net_timer!=0) {
                    netorder = 1;
                 }
 #endif
@@ -6418,7 +6418,7 @@ void Key( int key, int modifiers ) {
           break;
       case KSYM_F5:
           save_config();
-          if(SDL_AddTimer(2000,notshow_disc,NULL) != NULL) {
+          if(SDL_AddTimer(2000,notshow_disc,NULL) != 0) {
             show_disc = 1;
           }
          break;
@@ -7063,7 +7063,7 @@ void open_client_listener(void)
      if(wait_key) {
         return;
      }
-       if((net_id=SDL_AddTimer(1000,wait_for_server_connect,NULL)) != NULL) {
+       if((net_id=SDL_AddTimer(1000,wait_for_server_connect,NULL)) != 0) {
         network_game = play_network;
         wait_key = 1; // stop some key interactions and new game start etc.
         wait_seconds = 120; // how long in seconds to wait
@@ -7095,7 +7095,7 @@ TCPsocket open_server_listener(void)
        wait_key = 1; // now, wait for connect
        wait_seconds = 120; // how long in seconds to wait
        SDL_Delay(20);
-       if((net_id=SDL_AddTimer(1000,wait_for_connect,NULL)) == NULL) {
+       if((net_id=SDL_AddTimer(1000,wait_for_connect,NULL)) == 0) {
         //problem with timer, so no network game
         wait_key = 0;
         displaystring (localeText[258]);
@@ -7606,11 +7606,13 @@ void menu_cb( int id, void * arg , VMfloat value)
         options_lensflare=0;
         break;
     case MENU_ID_RESTART:
-    	save_config();
-    	SDL_Delay(1000); //wait a second
-    	sdl_exit(); //only quit SDL before new restart!!!
-    	execl(get_prog(),appname_str,(char *)0);
-    	fprintf(stderr,"Return not expected. Must be an execv error.\n");
+        // NOTE: previously this did save_config()+sdl_exit()+execl() to
+        // restart the whole process. menu_choose() unconditionally runs
+        // menu_exit()/GL cleanup right after this callback returns, which
+        // segfaulted because sdl_exit() had already torn down the GL
+        // context/window and called SDL_Quit(). Use the same in-process
+        // restart as the F10 keyboard shortcut instead.
+        restart_game();
         break;
     case MENU_ID_CONTROL_KIND_ON:
         options_control_kind = 1;

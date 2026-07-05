@@ -1,3 +1,19 @@
+Unreleased (private fork fixes)
+================================
+- fix segfault when choosing "Restart Game" from the in-game menu:
+  menu_new() never initialized menuEntry->parent_entry, so menu_choose()
+  dereferenced an uninitialized/garbage pointer for any ID-type entry
+  living directly in the top-level menu (Restart Game, Help, Manual,
+  History, Tournament History)
+- menu "Restart Game" now calls restart_game() in-process (same as the F10
+  shortcut) instead of save_config()+sdl_exit()+execl() re-exec, which was
+  fragile and crashed if menu cleanup ran after SDL/GL teardown
+- fix strsound() (sound_stuff.c) reading from an uninitialized buffer
+  instead of the input filename, and a broken strcmp check that made the
+  mp3/ogg extension check always return true
+- fix pointer/int comparison warnings against SDL_TimerID (billard3d.c)
+- fix format-truncation warnings in history.c date formatting
+
 3.43 beta
 =========
 - russian localisation from Alrusdi

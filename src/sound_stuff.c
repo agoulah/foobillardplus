@@ -97,13 +97,15 @@ int strsound ( char s1[] )
 {
    int i = 0;
    char s[10];
-   if(strlen(s1) > 4) {
-      strcpy(s,&s[strlen(s)-4]);
+   size_t len = strlen(s1);
+   if(len > 4) {
+      strncpy(s,&s1[len-4],sizeof(s)-1);
+      s[sizeof(s)-1] = '\0';
       while (s[i]) {
-         s[i] = toupper(s[i]);
+         s[i] = toupper((unsigned char)s[i]);
          ++i;
       }
- 	    if(strcmp(s,".MP3") || strcmp(s,".OGG")) {
+ 	    if(strcmp(s,".MP3")==0 || strcmp(s,".OGG")==0) {
          return(1);
  	    }
    }
