@@ -8,8 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		8D0CBD24175332EA00CD8178 /* libfreetype.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8D0CBD21175332EA00CD8178 /* libfreetype.a */; };
-		8D0CBD25175332EA00CD8178 /* libpng15.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8D0CBD22175332EA00CD8178 /* libpng15.a */; };
-		8D0CBD26175332EA00CD8178 /* libSDL.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8D0CBD23175332EA00CD8178 /* libSDL.a */; };
+		8D0CBD25175332EA00CD8178 /* libpng.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8D0CBD22175332EA00CD8178 /* libpng.a */; };
+		8D0CBD26175332EA00CD8178 /* libSDL2.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8D0CBD23175332EA00CD8178 /* libSDL2.a */; };
 		8DA3128617523190008969CA /* getopt_long.c in Sources */ = {isa = PBXBuildFile; fileRef = 8DA3128417523190008969CA /* getopt_long.c */; };
 		B9390E38151D57D5009AB2F2 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B9390E37151D57D5009AB2F2 /* OpenGL.framework */; };
 		B993FE02151D08DD00A63F21 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B993FE01151D08DD00A63F21 /* Cocoa.framework */; };
@@ -63,9 +63,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		8D0CBD21175332EA00CD8178 /* libfreetype.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfreetype.a; path = homebrew/Cellar/freetype/2.4.11/lib/libfreetype.a; sourceTree = "<group>"; };
-		8D0CBD22175332EA00CD8178 /* libpng15.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpng15.a; path = homebrew/Cellar/libpng/1.5.14/lib/libpng15.a; sourceTree = "<group>"; };
-		8D0CBD23175332EA00CD8178 /* libSDL.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libSDL.a; path = homebrew/Cellar/sdl/1.2.15/lib/libSDL.a; sourceTree = "<group>"; };
+		8D0CBD21175332EA00CD8178 /* libfreetype.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfreetype.a; path = homebrew/lib/libfreetype.a; sourceTree = "<group>"; };
+		8D0CBD22175332EA00CD8178 /* libpng.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libpng.a; path = homebrew/lib/libpng.a; sourceTree = "<group>"; };
+		8D0CBD23175332EA00CD8178 /* libSDL2.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libSDL2.a; path = homebrew/lib/libSDL2.a; sourceTree = "<group>"; };
 		8DA3128417523190008969CA /* getopt_long.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = getopt_long.c; sourceTree = "<group>"; };
 		8DA3128517523190008969CA /* getopt_long.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = getopt_long.h; sourceTree = "<group>"; };
 		B9390E37151D57D5009AB2F2 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
@@ -157,8 +157,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				8D0CBD24175332EA00CD8178 /* libfreetype.a in Frameworks */,
-				8D0CBD25175332EA00CD8178 /* libpng15.a in Frameworks */,
-				8D0CBD26175332EA00CD8178 /* libSDL.a in Frameworks */,
+				8D0CBD25175332EA00CD8178 /* libpng.a in Frameworks */,
+				8D0CBD26175332EA00CD8178 /* libSDL2.a in Frameworks */,
 				B993FE02151D08DD00A63F21 /* Cocoa.framework in Frameworks */,
 				B9390E38151D57D5009AB2F2 /* OpenGL.framework in Frameworks */,
 			);
@@ -195,8 +195,8 @@
 			isa = PBXGroup;
 			children = (
 				8D0CBD21175332EA00CD8178 /* libfreetype.a */,
-				8D0CBD22175332EA00CD8178 /* libpng15.a */,
-				8D0CBD23175332EA00CD8178 /* libSDL.a */,
+				8D0CBD22175332EA00CD8178 /* libpng.a */,
+				8D0CBD23175332EA00CD8178 /* libSDL2.a */,
 				B9390E37151D57D5009AB2F2 /* OpenGL.framework */,
 				B993FE01151D08DD00A63F21 /* Cocoa.framework */,
 				B993FE03151D08DD00A63F21 /* Other Frameworks */,
@@ -365,7 +365,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ ! -d \"${SOURCE_ROOT}/homebrew\" ]\nthen\n    git clone git://github.com/mxcl/homebrew.git \"${SOURCE_ROOT}/homebrew\"\nfi\ncd \"${SOURCE_ROOT}/homebrew\"\ngit pull\n\n\n\"${SOURCE_ROOT}/homebrew/bin/brew\" install freetype libpng sdl\n";
+			shellScript = "if [ ! -d \"${SOURCE_ROOT}/homebrew\" ]\nthen\n    git clone https://github.com/Homebrew/brew.git \"${SOURCE_ROOT}/homebrew\"\nfi\ncd \"${SOURCE_ROOT}/homebrew\"\ngit pull\n\n\n\"${SOURCE_ROOT}/homebrew/bin/brew\" install freetype libpng sdl2\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */

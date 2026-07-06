@@ -1,5 +1,31 @@
 Unreleased (private fork fixes)
 ================================
+- fix broken text entry on non-US keyboard layouts (AZERTY, QWERTZ, ...):
+  menu textfields (player name, host, port) relied on the SDL 1.2-era
+  keysym->ASCII hack, which mistranslates shifted/layout-remapped
+  characters. Printable characters now arrive layout-correct via SDL2
+  SDL_TEXTINPUT events while a textfield is edited (handle_text_input(),
+  sys_stuff.c; text_input_active(), billard3d.c); game hotkeys still use
+  the keydown path and are not delivered twice
+- fix VSync swap interval being set before the GL context existed
+  (a silent no-op in SDL2); SDL_GL_SetSwapInterval() is now called once
+  after SDL_GL_CreateContext(), for both the on and off case
+- fix executable self-location (sys_stuff.c enter_data_dir()): gate the
+  /proc/<pid>/exe readlink on __linux__ instead of the project-defined
+  POSIX macro, NUL-terminate the readlink() result (it is not terminated
+  by readlink itself), and make get_data_dir() fall back to "." unless an
+  absolute path was found
+- drop the SDL 1.2-only SDL_GetWMInfo()/ShowWindow() Windows fullscreen
+  hack in sys_fullscreen(); Windows now uses the same SDL2
+  SDL_SetWindowFullscreen() path as X11/Wayland, unblocking a future
+  Windows build
+- update Debian packaging to SDL2: debian/control now Build-Depends on
+  libsdl2-dev, libsdl2-net-dev, libsdl2-mixer-dev and libpng-dev instead
+  of the EOL SDL 1.2 and libpng12 packages
+- update the macOS Xcode project to SDL2: link libSDL2.a instead of the
+  vendored libSDL.a 1.2.15, reference homebrew's unversioned lib/ symlinks
+  for freetype/libpng/SDL2, and fix the dead mxcl/homebrew clone URL in
+  the "Fetch Dependencies" build phase (untested - no Mac available)
 - SECURITY: fix a stack buffer overflow when joining a network game: the
   handshake in join_network_game() parsed the two player names from the
   remote peer with unbounded sscanf("%s"), so a hostile/buggy server could

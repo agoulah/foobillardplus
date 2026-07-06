@@ -84,6 +84,7 @@ struct TournamentState_ {
 
 void Key( int key, int modifiers );
 void KeyUp( int key );
+int text_input_active( void );
 void MouseEvent(MouseButtonEnum button,MouseButtonState  state, int x, int y);
 void MouseMotion(int x, int y);
 void DisplayFunc(void);

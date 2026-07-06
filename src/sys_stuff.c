@@ -30,7 +30,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_syswm.h>
 #ifdef USE_WIN
   #include <windows.h>
   #include <shellapi.h>
@@ -362,13 +361,6 @@ void sys_create_display(int width,int height,int _fullscreen)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
 #endif
 
-    /* VSync support */
-    if(options_vsync) {
-        SDL_GL_SetSwapInterval(1);
-    } else {
-        SDL_GL_SetSwapInterval(0);
-    }
-
 #ifndef WETAB
     /* FSAA/Multisample support */
     if(options_fsaa_value) {
@@ -452,10 +444,8 @@ void sys_create_display(int width,int height,int _fullscreen)
         }
     }
 
-    /* Apply VSync setting */
-    if(options_vsync) {
-        SDL_GL_SetSwapInterval(1);
-    }
+    /* Apply VSync setting (only effective once the GL context exists) */
+    SDL_GL_SetSwapInterval(options_vsync ? 1 : 0);
 
 #ifndef WETAB
     /* Check and enable FSAA if requested */
@@ -471,6 +461,10 @@ void sys_create_display(int width,int height,int _fullscreen)
         SDL_SetWindowIcon(main_window, icon);
         SDL_FreeSurface(icon);
     }
+
+    /* Receive layout-correct characters via SDL_TEXTINPUT for the
+     * menu textfields (see handle_text_input) */
+    SDL_StartTextInput();
 
 #ifdef TOUCH
     cursor = SDL_CreateCursor(cursorData, cursorMask, 16, 16, 0, 0);
@@ -501,7 +495,6 @@ int sys_get_fullscreen(void)
 
 /**************************************************************************
  *            Set a fullscreen(1) or window(0) window                     *
- * SDL_WM_ToggleFullScreen(screen) works only on X11 and there not stable *
  **************************************************************************/
 
 void sys_fullscreen( int fullscr )
@@ -509,21 +502,8 @@ void sys_fullscreen( int fullscr )
 #ifdef __APPLE__
     // would need to rebuild context for toggling fullscreen
     fullscreen = fullscr;
-#elif defined(USE_WIN)
-    // MS-Windows and SDL 1.2 with OpenGL are not really friends
-    // and at the time I don't want to rebuild the whole OpenGL context
-    // so only a window resize to fullscreen and back is done
-    SDL_SysWMinfo info;
-    SDL_VERSION(&info.version);
-    SDL_GetWMInfo(&info);
-    if(fullscr) {
-        ShowWindow(info.window, SW_MAXIMIZE);
-    } else {
-        ShowWindow(info.window, SW_RESTORE);
-    }
-    fullscreen = fullscr;
 #else
-    /* SDL 2.0 fullscreen toggle */
+    /* SDL 2.0 fullscreen toggle (all platforms including Windows) */
     if(main_window) {
         if(fullscr != 0) {
             SDL_SetWindowFullscreen(main_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
@@ -605,6 +585,37 @@ static void handle_button_event(SDL_MouseButtonEvent *e)
 }
 
 /***********************************************************************
+ *                     handle for the mouse wheel                      *
+ *  SDL2 reports the wheel via SDL_MOUSEWHEEL (not buttons 4/5 like    *
+ *  SDL 1.2 did), so translate it into MOUSE_WHEEL_*_BUTTON events.    *
+ ***********************************************************************/
+
+static void handle_wheel_event(SDL_MouseWheelEvent *e)
+{
+  int mx, my, i, steps;
+  MouseButtonEnum b;
+  int y = e->y;
+
+  update_key_modifiers() ;
+
+  /* SDL_MOUSEWHEEL_FLIPPED means the wheel direction is inverted */
+  if(e->direction == SDL_MOUSEWHEEL_FLIPPED) y = -y;
+
+  if(y == 0) return;
+
+  b = (y > 0) ? MOUSE_WHEEL_UP_BUTTON : MOUSE_WHEEL_DOWN_BUTTON;
+  steps = (y > 0) ? y : -y;
+
+  SDL_GetMouseState(&mx, &my);
+
+  /* one adjustment per wheel notch; the MouseEvent wheel handler does
+   * not distinguish MOUSE_DOWN/MOUSE_UP, so dispatch a single event */
+  for(i = 0; i < steps; i++) {
+    MouseEvent(b, MOUSE_DOWN, mx, my) ;
+  }
+}
+
+/***********************************************************************
  *        Translate the keystrokes from SDL for foobillard++           *
  ***********************************************************************/
 
@@ -675,6 +686,11 @@ static int translate_key(SDL_KeyboardEvent* e)
     //fprintf(stderr,"%i\n",e->keysym.sym);
     if (e->keysym.sym>0 && e->keysym.sym<=127) {
       keysym = (int) e->keysym.sym ;
+      /* while a menu textfield is edited, printable characters arrive
+       * layout-correct via SDL_TEXTINPUT - don't deliver them twice */
+      if(keysym >= 32 && keysym < 127 && text_input_active()) {
+        return -1;
+      }
       if((e->keysym.mod & KMOD_LSHIFT) || (e->keysym.mod & KMOD_RSHIFT) || (e->keysym.mod & KMOD_CAPS)) {
         if(keysym >= SDLK_a && keysym <= SDLK_z) {
            keysym = keysym-32;
@@ -715,6 +731,30 @@ static void handle_key_up(SDL_KeyboardEvent* e)
   keysym = translate_key(e);
   if(keysym!=-1){
       KeyUp(keysym);
+  }
+}
+
+/***********************************************************************
+ *              Handle for SDL2 text input (SDL_TEXTINPUT)             *
+ *  Delivers layout-correct characters (AZERTY, QWERTZ, ...) for the   *
+ *  menu textfields. Only consumed while a textfield is edited; game   *
+ *  hotkeys keep coming through the keydown path.                      *
+ ***********************************************************************/
+
+static void handle_text_input(SDL_TextInputEvent *e)
+{
+  char *p;
+
+  if(!text_input_active()) {
+    return;
+  }
+  update_key_modifiers();
+  /* the menu textfields only accept ASCII subsets, so forward printable
+   * ASCII and skip multi-byte UTF-8 sequences */
+  for(p = e->text; *p; p++) {
+    if((unsigned char)*p >= 32 && (unsigned char)*p < 127) {
+      Key((int)*p, keymodif);
+    }
   }
 }
 
@@ -790,6 +830,13 @@ static void  process_events( void )
             case SDL_MOUSEBUTTONUP:
                 handle_button_event(&(event.button)) ;
                 check_SDL = 0;
+                break ;
+            case SDL_MOUSEWHEEL:
+                handle_wheel_event(&(event.wheel)) ;
+                check_SDL = 0;
+                break ;
+            case SDL_TEXTINPUT:
+                handle_text_input(&(event.text)) ;
                 break ;
             case SDL_WINDOWEVENT:  // CHANGED: was SDL_VIDEORESIZE
                 if(event.window.event == SDL_WINDOWEVENT_RESIZED) {
@@ -889,8 +936,9 @@ static char exe_prog[512];
 void enter_data_dir() {
     int success = 1;
 
-#ifdef POSIX
+#if defined(__linux__) && !defined(__APPLE__) && !defined(USE_WIN)
     char proc_exe[20];
+    ssize_t link_len;
     char *slash_pos;
 #endif
 
@@ -905,14 +953,18 @@ void enter_data_dir() {
 
         strncpy(data_dir, data_directory, sizeof(data_dir));
         strncpy(exe_prog, data_directory, sizeof(exe_prog));
+        data_dir[sizeof(data_dir)-1] = '\0';
+        exe_prog[sizeof(exe_prog)-1] = '\0';
         free(data_directory);
-#elif defined(POSIX)
+#elif defined(__linux__) && !defined(USE_WIN)
         snprintf(proc_exe, sizeof(proc_exe), "/proc/%d/exe", getpid());
-        if (readlink(proc_exe, data_dir, sizeof(data_dir)) < 0) {
+        link_len = readlink(proc_exe, data_dir, sizeof(data_dir)-1);
+        if (link_len < 0) {
             perror("readlink failed");
             break;
         }
-        strncpy(exe_prog, data_dir, sizeof(exe_prog));
+        data_dir[link_len] = '\0';
+        snprintf(exe_prog, sizeof(exe_prog), "%s", data_dir);
         // Remove program name
         slash_pos = strrchr(data_dir, '/');
         if (!slash_pos) break;
@@ -962,11 +1014,14 @@ void enter_data_dir() {
  ***********************************************************************/
 
 const char *get_data_dir() {
-#ifdef POSIX
-    return data_dir;
-#else
+    /* data_dir holds an absolute path when the executable was located
+     * (Linux /proc, macOS bundle, Debian fallback); otherwise it is only
+     * valid relative to the start directory, so fall back to the
+     * directory enter_data_dir() already chdir'd into */
+    if (data_dir[0] == '/') {
+        return data_dir;
+    }
     return ".";
-#endif
 }
 /***********************************************************************
  *           returns the "exe" directory and applicationname           *
@@ -980,7 +1035,7 @@ const char *get_prog() {
  ***********************************************************************/
 
 int file_exists(const char *path) {
-#ifdef POSIX
+#ifndef USE_WIN
     struct stat buf;
     return stat(path, &buf) == 0;
 #else

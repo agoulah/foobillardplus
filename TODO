@@ -29,22 +29,28 @@ P0 - security / crashes reachable in normal play
 P1 - SDL2 port completeness / "breaks now" on shipped platforms
 ---------------------------------------------------------------
 [DONE] menu "VSync ON" was dead code under SDL2 (fixed: SDL_GL_SetSwapInterval)
-
-- text input still uses the SDL 1.2 keysym->ASCII hack (sys_stuff.c ~707):
-  no SDL_StartTextInput/SDL_TEXTINPUT, so non-US keyboard layouts (AZERTY,
-  QWERTZ, accented chars) are broken for name/host entry
-- macOS build is broken: osx/ Xcode project still links libSDL.a 1.2.15 and
-  osx/config.h declares the SDL 1.x libs, though SDLMain.m uses SDL2
-- Debian packaging is broken: debian/control Build-Depends on libsdl1.2-dev,
-  libsdl-net1.2-dev, libsdl-mixer1.2-dev, libpng12-dev (all EOL); update to
-  the SDL2 libs
-- data-directory self-location is dead code: enter_data_dir() readlink logic
-  is gated on "#ifdef POSIX", which is never defined, so assets are only
-  found relative to cwd (sys_stuff.c ~927). Gate on the right macro
-- USE_WIN fullscreen path still calls SDL_GetWMInfo (SDL 1.2 API); won't
-  compile under SDL2 if the Windows build is re-enabled (sys_stuff.c ~516)
-- SwapInterval / multisample GL attributes set before the GL context exists
-  or after window creation, so they silently no-op (sys_stuff.c ~366, ~431)
+[DONE] text input used the SDL 1.2 keysym->ASCII hack, breaking non-US
+       layouts for name/host entry (fixed: SDL_StartTextInput +
+       SDL_TEXTINPUT routed to menu textfields while editing;
+       handle_text_input() in sys_stuff.c, text_input_active() in
+       billard3d.c)
+[DONE] macOS Xcode project linked libSDL.a 1.2.15 (fixed: links libSDL2.a
+       via homebrew/lib symlinks, brew installs sdl2, clone URL updated to
+       Homebrew/brew -- UNTESTED, needs a Mac; osx/config.h SDL 1.x lines
+       turned out to be inert autoconf comments)
+[DONE] Debian packaging depended on EOL SDL 1.2 / libpng12 (fixed:
+       libsdl2-dev, libsdl2-net-dev, libsdl2-mixer-dev, libpng-dev)
+[DONE] data-directory self-location (fixed: note the audit was wrong --
+       POSIX *is* defined in options.h, so the readlink path was live; it
+       is now gated on __linux__ since /proc/<pid>/exe is Linux-only, the
+       readlink result is NUL-terminated, and get_data_dir() falls back to
+       "." unless an absolute path was found)
+[DONE] USE_WIN fullscreen path called SDL 1.2 SDL_GetWMInfo (fixed:
+       removed; Windows uses the generic SDL2 SDL_SetWindowFullscreen path)
+[DONE] SwapInterval set before the GL context existed, silently no-op
+       (fixed: SDL_GL_SetSwapInterval(on/off) once after context creation;
+       the multisample SetAttribute calls flagged by the audit were fine --
+       they all happen before the (re)creation of the window they affect)
 
 
 P2 - gameplay correctness / incomplete features
