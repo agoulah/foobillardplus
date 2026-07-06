@@ -273,16 +273,19 @@ void init_history(void) {
    int i, checktournament, checkhistory;
 
 #ifdef USE_WIN
-   strcpy(file_name,getenv("USERPROFILE"));
-   strcat(file_name,"/Desktop/foobillardplus-data");
+   const char * homedir = getenv("USERPROFILE");
+   if( homedir==NULL ) homedir=".";
+   snprintf(file_name,sizeof(file_name),"%s/Desktop/foobillardplus-data",homedir);
    mkdir(file_name); //build directory every time is not a problem
 #elif defined(__APPLE__)
-   strcpy(file_name,getenv("HOME"));
-   strcat(file_name,"/Library/Application Support/Foobillard++");
+   const char * homedir = getenv("HOME");
+   if( homedir==NULL ) homedir=".";
+   snprintf(file_name,sizeof(file_name),"%s/Library/Application Support/Foobillard++",homedir);
    mkdir(file_name,0777); //build directory every time is not a problem
 #else
-   strcpy(file_name,getenv("HOME"));
-   strcat(file_name,"/foobillardplus-data");
+   const char * homedir = getenv("HOME");
+   if( homedir==NULL ) homedir=".";
+   snprintf(file_name,sizeof(file_name),"%s/foobillardplus-data",homedir);
    mkdir(file_name,0777); //build directory every time is not a problem
 #endif
    checktournament = check_xml("tournament.xml");

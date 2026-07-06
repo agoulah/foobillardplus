@@ -1,25 +1,99 @@
-﻿TODO (new)
-==========
-
-- Bump mapping (table.c) for all graphic cards
-- Work on menues
-  - better keyboard selection
-  - some pop-up functionality
-- network totally new with ipv4 and ipv6 (Beta in IPv4)
-- Bluetooth integration
-- remove all nvidia specific stuff
-
-TODO (old - the rest)
+TODO
 ====
- - better replace-balls-valid-func
- - implement international rules (maybe http://www.bca-pool.com/play/tournaments/rules/rls_gen.shtml)
- - save/load game.
- - correct initial spin (roll when hit 1/3 from top)
- - adjustable direct mouse hit - ratio
- - correct normals for 3D-font
- - replace cubereflection textures of chrome edges
- - performance improvements by triangle strips
- - cutoff for ang. mom. transfer also for bande?
- - AI-player not recognize: 8ball 1st played foul
- - better lens flare (angle dependent)
- - better ai-player
+
+This list was re-prioritized after a code audit of the SDL2 fork. Items are
+grouped by priority. See ChangeLog for what has already been fixed.
+
+
+P0 - security / crashes reachable in normal play
+------------------------------------------------
+[DONE] network name handshake: unbounded sscanf("%s") -> stack smash
+       (fixed: "%255s" in join_network_game(), billard3d.c)
+[DONE] player-name copy macros unbounded -> overflow from CLI/config name
+       (fixed: strcpy_*_2_* now take a size, billard3d.h)
+[DONE] load_config() read into fixed 20000-byte stack buffer, no bounds
+       check (fixed: bounded read, billard3d.c)
+[DONE] getenv("HOME")/USERPROFILE used unchecked in strcpy/sprintf
+       (fixed: NULL-check + snprintf in billard3d.c and history.c)
+
+- audit the remaining unchecked getenv/strcpy/sprintf sites flagged by the
+  audit but not yet reachable in normal play:
+  - sys_stuff.c get_dialogprog(): strcpy(getenv("PATH")) into path[2048] and
+    split() filling pointers[512] with no cap
+  - net_socket.c get_ip_address(): strcat per interface into ip_adresses[4096]
+    with no cap; gethostname() may not NUL-terminate on truncation
+  - menu.c KEY_TYPE_NOTHING text entry appends chars with no length guard
+    (latent; current fields are bounded KEY_TYPE_MIXED)
+
+
+P1 - SDL2 port completeness / "breaks now" on shipped platforms
+---------------------------------------------------------------
+[DONE] menu "VSync ON" was dead code under SDL2 (fixed: SDL_GL_SetSwapInterval)
+
+- text input still uses the SDL 1.2 keysym->ASCII hack (sys_stuff.c ~707):
+  no SDL_StartTextInput/SDL_TEXTINPUT, so non-US keyboard layouts (AZERTY,
+  QWERTZ, accented chars) are broken for name/host entry
+- macOS build is broken: osx/ Xcode project still links libSDL.a 1.2.15 and
+  osx/config.h declares the SDL 1.x libs, though SDLMain.m uses SDL2
+- Debian packaging is broken: debian/control Build-Depends on libsdl1.2-dev,
+  libsdl-net1.2-dev, libsdl-mixer1.2-dev, libpng12-dev (all EOL); update to
+  the SDL2 libs
+- data-directory self-location is dead code: enter_data_dir() readlink logic
+  is gated on "#ifdef POSIX", which is never defined, so assets are only
+  found relative to cwd (sys_stuff.c ~927). Gate on the right macro
+- USE_WIN fullscreen path still calls SDL_GetWMInfo (SDL 1.2 API); won't
+  compile under SDL2 if the Windows build is re-enabled (sys_stuff.c ~516)
+- SwapInterval / multisample GL attributes set before the GL context exists
+  or after window creation, so they silently no-op (sys_stuff.c ~366, ~431)
+
+
+P2 - gameplay correctness / incomplete features
+-----------------------------------------------
+- AI commits 8-ball-first fouls: the referee detects it (evaluate_move.c)
+  but the AI never checks that its cue path to the target won't hit the 8
+  first (aiplayer.c ~136-208).  [was: "AI-player not recognize: 8ball 1st
+  played foul"]
+- AI degrades to near-random aiming when no clean pot exists (aiplayer.c
+  ~173-197); no safety/defensive play.  [was: "better ai-player"]
+- save/load game: no ball/turn-state serialization exists (history.c only
+  writes HTML statistics); no menu entries
+- network needs a real rewrite, not just the P0 patch: fixed-frame protocol,
+  endianness-fragile raw memcpy of remote bytes into int/VMfloat, no resync
+  (a partial TCP read aborts the game), IPv6 is display-only (connect/host is
+  IPv4 only), and shoot() has an empty net turn-handoff stub (billard3d.c
+  ~2905).  [was: "network totally new with ipv4 and ipv6 (Beta in IPv4)"]
+- implement international rules
+  (maybe http://www.bca-pool.com/play/tournaments/rules/rls_gen.shtml)
+- correct initial spin (roll when hit 1/3 from top)
+- adjustable direct mouse hit-ratio
+- cutoff for ang. mom. transfer also for bande?
+
+
+P3 - cleanup / bit-rot (low risk)
+---------------------------------
+- remove all nvidia-specific stuff: NV register-combiner bump-mapping across
+  bumpref.c (~36 refs) + ball.c, billard3d.c, table.c, queue.c, room.c,
+  png_loader.c, textobj.c. Compiled out by default, but --enable-nvidia on a
+  modern GPU crashes rather than degrades (no runtime extension check)
+- build/CI modernization: rename configure.in -> configure.ac; drop the
+  vestigial AC_CHECK_LIB(SDL2,SDL_LockAudio) probe and prefer pkg-config;
+  CI pins actions/checkout@v2 (deprecated), ubuntu-22.04, gcc-10/clang-12 PPA
+- remove dead code: commented-out gaussian_blur() (bumpref.c ~120),
+  getrealindex() (font.c ~260), and SDL-1.2-era WETAB/TOUCH/USE_WIN #ifdef
+  paths
+- bump mapping (table.c) for all graphic cards
+- menu polish: better keyboard selection, some pop-up functionality
+- correct normals for 3D-font
+- replace cubereflection textures of chrome edges
+- performance improvements by triangle strips
+- better lens flare (angle dependent)
+- Bluetooth integration
+- vmath.c fastpow() marked "not really clean"; MAX_PRIM_NUM (ball.h) fixed
+  cap "FIXME: make me dynamic"
+
+
+Resolved (verify then keep removed)
+-----------------------------------
+- "better replace-balls-valid-func" -- addressed by the ball_free_place()
+  rework (billard3d.c ~2964-3020) that keeps the settled position instead of
+  relocating any ball outside in_table_region(). See ChangeLog.

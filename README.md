@@ -1,260 +1,207 @@
-## FooBillard++ - based on [foobillard 3.0a](https://en.wikipedia.org/wiki/FooBillard) by Florian Berger
+# FooBillard++
 
-## License
+A free OpenGL billiard (pool) game for Linux, macOS and Windows.
 
-Copyright (C) 2001 Florian Berger (foobillard)
-
-Copyright (C) 2010/2011 Holger Schaekel (foobillard++)
-
-email: foobillardplus@go4more.de
-			    
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License Version 2 as
-published by the Free Software Foundation;
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-## What is FooBillard++?
-
-FooBillard++ is a free OpenGL-billiard game for Linux and based on the
-original foobillard 3.0a source from `Florian Berger`. 
+FooBillard++ is an advanced version of the original
+[foobillard 3.0a](https://en.wikipedia.org/wiki/FooBillard) by Florian Berger,
+extended by Holger Schaekel with many fixes, new options, graphics and
+features. This repository is a modernized fork: the game has been **ported
+from SDL 1.2 to SDL2** and a number of long-standing crashes and gameplay
+bugs have been fixed (see [Recent changes](#recent-changes-in-this-fork) and
+the [ChangeLog](ChangeLog)).
 
 ![opening](screenshots/foobilliards.png)
 
-### Why foo?
+## Features
 
-Well, actually he had this logo (F.B.-Florian Berger) and then foo sounds a
-bit like pool (Somehow he wasn't quite attracted by the name `FoolBillard`)
+- 8-ball, 9-ball, carambol and snooker, with simple rules enforcement
+- Tournament mode for all game types
+- Simple AI player
+- Full 3D view: rotate (left mouse button), zoom (right mouse button),
+  FOV (right mouse button + `CTRL`), fully playable bird's-eye view
+- Shot strength adjustment (mouse wheel) and eccentric hit / spin
+  adjustment (button 2 + `Shift`)
+- Jump shots and advanced aiming ("snipping") mode
+- Animated cue, reflections on balls, shadows, lens flare
+- Red/green (anaglyph) stereo mode
+- Sound effects and background music (SDL2_mixer)
+- Network play over IPv4 (beta)
+- Tron-like game mode and glass balls, if you like
+- CLI options plus a config file (`~/.foobillardrc`)
+- On-screen HUD and status line
 
-If you are a billiard-pro and you're missing some physics,
-please tell us. Cause I've implemented it like I think it should work,
-which might differ from reality. Please contact us over sourceforge.net
+Press `F1` in game for a quick help!
 
-Started at 12/2010 an advanced version is in progress with foobillard++.
-It's not really a new game, but an advanced with a lot of fixes, new
-options, graphics and features until the last version of foobillard (2007).
-At this point it's started with a special version for the Touch-PC WeTab.
+## Dependencies
 
-### Dependencies
+- OpenGL and GLU (100% OpenGL-compatible drivers required)
+- [SDL2](https://www.libsdl.org/) — windowing and input
+- SDL2_mixer — sound and music
+- SDL2_net — network play
+- libpng — texture loading
+- FreeType 2 — font rendering
 
-You need to have `SDL 1` installed on your system.
-Furthermore `libpng` has to be installed for loading the textures.
-And `freetype2` is used for font rendering.
-`SDL_net` is used for the networking mode
-`SDL_mixer` for sound and music
-
-### Prerequisites:
-   - 100% OpenGL compatible graphic card drivers for your operating system.
-   
-   - The graphic card must have 50 to 80 Megabyte Video-RAM! If the driver can't
-   allocate enough graphic card memory, the game graphics is ugly and corrupt!!
-   
-   - Linux, WeTab, Mac OS 10.6.x or Windows OS (32 or 64 Bit) with a minimum of 10 MB
-   free system memory at runtime.
-   
-### Credits && Thanks 
-
-Many thanks to the band `Zentriert ins Antlitz`, specially Marc Friedrich,
-for the music in the game! Have a look on their great site at: http://www.zentriertinsantlitz.de
-
-### The project is powered by the following amazing FOSS:
-
-- OpenGL 1
-- GNU C Compiler
-- GNU `Autotools`
-- The `SDL 1` Simple Media Library
-- Eclipse C/C++ IDE
-- Gimp Image Manipulation Program
-- Blender 3D
-- Audacity
-- Free 3D graphics from www.terminal26.de
-- Free 3D graphics from www.scopia.es
-- Free 3d graphics from www.blendswap.com
-
-- Sourceforge.net as hoster
-- freecode.com for announcement
-- google code for announcement
-- youtube as hoster for the video samples
-
-
-### BUILDING
-
-
-#### UNIX based platforms
-
-Building for sound support and no Nvidia-related specs are standard.
-Please don't use `--enable-nvidia` (it's only for testing.....)
-
-For compilation from source you need the GNU `autoconf` and `automake` packages.
-After unpacking the source archive change to the `foobillardplus` directory and
-type the following commands (or invoke `buildme.sh`:
+On Debian/Ubuntu:
 
 ```sh
-aclocal --force  
-autoconf -f  
-autoheader -f  
-automake -a -c -f  
+sudo apt-get install build-essential pkg-config autoconf automake \
+    libglu1-mesa-dev libfreetype6-dev libpng-dev \
+    libsdl2-dev libsdl2-net-dev libsdl2-mixer-dev
 ```
 
-#### OS X
-For Mac OS are special files inside the directory OSX from root. There is also a
-project file. `Freetype` and `SDL` are included there.
- simply type in main-directory (for standard-installation):
+On Fedora:
 
-
-A special very fast version is build with
-
-./configure --enable-special  
-make  
-make install  
-
-If you want to enable the special WeTab Version type:
-
-```sh 
-./configure --enable-wetab  
-make  
-make install  
+```sh
+sudo dnf install gcc make autoconf automake mesa-libGLU-devel \
+    freetype-devel libpng-devel SDL2-devel SDL2_net-devel SDL2_mixer-devel
 ```
 
-That version would be only run on a WeTab Tablet-PC
+## Building
 
+The project uses GNU Autotools. The quickest way:
+
+```sh
+./buildme.sh        # regenerates the build system, runs ./configure && make
+sudo make install
+```
+
+Or step by step:
+
+```sh
+aclocal --force
+autoconf -f
+autoheader -f
+automake -a -c -f
+./configure
+make
+sudo make install
+```
+
+The game installs under `/usr/games/foobillardplus` by default; run
+`/usr/games/foobillardplus/bin/foobillardplus` (or add it to your `PATH`).
+
+Every push is built by GitHub Actions on Ubuntu with both gcc and clang
+(see [.github/workflows/ci.yml](.github/workflows/ci.yml)).
+
+### macOS
+
+Special files for macOS, including an Xcode project, are in the
+[osx](osx) directory. The homebrew-provided `freetype` and `sdl2` libraries
+are used for the dependencies.
 
 ### configure options
 
-`--enable-wetab`:
+| Option | Default | Description |
+| ------ | ------- | ----------- |
+| `--enable-sound=ARG` | yes | Build with sound support (SDL2_mixer). |
+| `--enable-network=ARG` | yes | Build with IP network game support (SDL2_net). |
+| `--enable-mathsingle=ARG` | yes | Use single-precision math. **Clients with mixed single/double precision are not compatible in network games.** |
+| `--enable-fastmath` | no | Use fast approximate sine/cosine/tangent routines. Less accurate than the standard routines, but enough for the game. Unrelated to SSE. |
+| `--enable-sse=ARG` | no | Use SSE intrinsics. Implies single precision (double precision is disabled automatically). x86/x86_64 CPUs only. |
+| `--enable-optimization` | no | Build with a high compiler optimization level. May produce unstable code on some systems — see below. |
+| `--enable-special` | no | Pass your own custom `CFLAGS` instead of the defaults. |
+| `--enable-touch` | no | Build a version for generic touch devices. |
+| `--enable-wetab` | no | Build a version for the WeTab tablet PC (and only for that). Don't combine with other optimization flags. |
+| `--enable-win` | no | Cross-build for MS Windows (32/64 bit) under a [MinGW/MSYS](http://sourceforge.net/projects/mingw) environment. |
 
-This builds a version for the German tablet WeTab (and only for that!!)
-Please don't use other optimization flags discussed later in this document, because this option is the only one you need!!
+Note: `--enable-nvidia` exists but is for testing only — please don't use it.
 
-`--enable-touch`:
+#### A note on compiler optimization
 
-This build a special version for generic touch-devices
-
-`--enable-mathsingle=ARG`:
-
-Compile math single precision (default=yes). If you use "no" it is compiled for math double precision. 
-**Clients with mixed single or double precision are not compatible in network games**
-
-`--enable-fastmath`:
-
-Compile fast math routine in (default=no). With set this configure option, special
-optimized math-routines for cosine, sine, tangents are used. This has nothing to do
-with `SSE` intrinsics. The fast math routines are not nearly as accurate as the
-standard routines, but enough for the game.
-
-`--enable-sse=ARG`:
-
-Compile with intrinsics SSE commands and use. With enabled SSE, the use of
-`enable-mathsingle` defaults to yes. Double precision are automatically disabled.
-Use `SSE` only on Intel or AMD based CPU systems!
-
-
-`--enable-network=ARG`:
-
-Compile for IP-network game support (default=yes). With no as argument, all
-network support is not compiled.
-
-`--enable-sound=ARG`:
-
-Enable sound (default=yes). With no as argument sound support is not compiled.
-
-`--enable-win`:
-
-If set to yes, the source is compiling for ms-windows (32 and 64 Bit). You have to use
-as runtime environment MinGW/Msys under MS-Windows.
-http://sourceforge.net/projects/mingw
-
-
-### config file (~/.foobillardrc)
-
-You can place a config file named `.foobillardrc` in your home directory.
-Windows hold the file in the directory associated with the content of the
-environment variable `USERPROFILE`.
-
-This file can contain all possible CLI arguments (without the "-" prefix; one line for each argument).
-CLI arguments are parsed last, so they override the ".foobillardrc" settings. 
-
-### Features
-
-- Wood paneled table with gold covers and gold diamonds
-- Reflections on balls
-- Shadow pixmaps
-- Detail switching of balls according to distance
-- Zoom in/out - hold right mouse button
-- FOV +/- - hold right mouse button + `CTRL`
-- Rotate - hold left mouse button
-- Animated cue
-- Simple billiard rules for 8 and 9-ball
-- Simple AI-Player
-- Strength adjustment
-- Eccentric hit adjustment (button2 + Shift)
-- Lens flare
-- CLI options
-- Config file (~/.foobillardrc)
-- Lightweight red/green stereo !!!!
-- Sound and music (using SDL)
-- Status line for info in gameplay
-- Advanced hud
-- Jump shots
-- Advanced snipping mode
-- Tournament for all games
-- Basic OpenGL improvements (anisotropic, antialias)
-- Full playable in bird's eye view
-- Tron like game mode
-- Glass balls, if you like
-
-Press <F1> in game for a quick help!
-
-### red-green stereo
-
-One picture is drawn on red channel only, the other one on the other both channels (green, blue) so you can use either a green or blue or cyan filter for one eye (left), and a red one for the other eye (right).
-
-
-### Network game
-
-IP network support is possible. Now with IPv4. IPv6 is supported in the future.
-This function is heavily BETA.
-
-### Screen images
-
-
-![green](screenshots/foobilliards1.png)
-![snooker](screenshots/foobilliards-snooker.png)
-![snooker1](screenshots/foobilliards-snooker1.png)
-
-
-### Optimization problem of the GCC suite (don't use with WeTab compiling!)
-
-On some systems certain `gcc` optimisations may result in unstable code. To
-To output possible optimisations on the target arch, invoke:
+On some systems aggressive `gcc` optimization can produce unstable code,
+which is why no optimization flags are set by default. To list the
+optimizations available on your target architecture:
 
 ```sh
 gcc -c -Q -O3 --help=optimizers > /tmp/O3-opts
 ```
 
-Check the generated file for available optimisations on your system. Please use these wisely and don't confuse these with general `configure` arguments.
+Use these wisely via `--enable-special` (custom `CFLAGS`), or use
+`--enable-optimization` for a preset higher level. There is no guarantee
+that the highest levels produce a stable program.
 
-The `configure` script supports the `--enable-standard` argument.
+## Config file (`~/.foobillardrc`)
 
-To pass customised `CFLAGS`, use `--enable-special`. No optimisation flags are set by default.
+You can place a config file named `.foobillardrc` in your home directory
+(on Windows, in the directory named by the `USERPROFILE` environment
+variable). The game also writes its settings there.
 
-The `--enable-optimization` switch uses some special level of optimisations and will produce hopefully a stable program. Default value is `no`.
+The file can contain any CLI argument, without the leading `-` and one per
+line. CLI arguments are parsed last, so they override `.foobillardrc`
+settings.
 
+## Red/green stereo
 
-With this switch the highest optimisation level is used. Be careful: there is no
-guarantee from the author that this will produce a stable program but does quicken the build time.
+One picture is drawn on the red channel only, the other on the green and
+blue channels, so you can use a green, blue or cyan filter for the left eye
+and a red one for the right eye.
 
-### KNOWN BUGS
+## Network game
 
-- Intel integrated graphic chips
-- On some Intel integrated graphic chips (GMA) the game is not playable with Linux.
+IP network play is supported over IPv4 (IPv6 is planned). This feature is
+heavily BETA.
 
-**You need really 100% OpenGL compatible graphic card drivers.**
-    
+## Recent changes in this fork
+
+- Ported from SDL 1.2 to SDL2, including mouse-wheel handling via
+  `SDL_MOUSEWHEEL` (the wheel adjusts shot strength)
+- Fixed a segfault when choosing "Restart Game" from the in-game menu, and
+  made it restart in-process instead of re-executing the binary
+- Fixed balls resting in a pocket jaw or against a rail jumping to a new
+  position between shots
+- Fixed the default language selection
+- Cleaned up various compiler warnings and an uninitialized-buffer read in
+  the sound code
+
+See the [ChangeLog](ChangeLog) for details.
+
+## Screenshots
+
+![green](screenshots/foobilliards1.png)
+![snooker](screenshots/foobilliards-snooker.png)
+![snooker1](screenshots/foobilliards-snooker1.png)
+
+## Known bugs
+
+- On some Intel integrated graphics chips (GMA) the game is not playable
+  under Linux. You really need 100% OpenGL-compatible graphics drivers, and
+  50–80 MB of video RAM — with less, the game graphics come out ugly and
+  corrupt.
+
+## Why "foo"?
+
+Florian Berger had this logo (F.B. — Florian Berger) and "foo" sounds a bit
+like "pool" (somehow he wasn't quite attracted by the name "FoolBillard").
+
+If you are a billiard pro and you're missing some physics, please tell us —
+it was implemented the way the authors think it should work, which might
+differ from reality.
+
+## Credits & thanks
+
+Many thanks to the band `Zentriert ins Antlitz`, especially Marc Friedrich,
+for the music in the game: http://www.zentriertinsantlitz.de
+
+The project is powered by, among others: OpenGL, GCC, GNU Autotools, SDL2,
+GIMP, Blender, Audacity, and free 3D graphics from www.terminal26.de,
+www.scopia.es and www.blendswap.com. See [AUTHORS](AUTHORS) for the full
+list of contributors.
+
+## License
+
+Copyright (C) 2001 Florian Berger (foobillard)
+
+Copyright (C) 2010/2011 Holger Schaekel (foobillard++) —
+email: foobillardplus@go4more.de
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License Version 2 as published by
+the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+more details ([COPYING](COPYING)).
+
+The bundled fonts are licensed under the SIL Open Font License
+([OFL.txt](OFL.txt)).

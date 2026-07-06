@@ -1,5 +1,35 @@
 Unreleased (private fork fixes)
 ================================
+- SECURITY: fix a stack buffer overflow when joining a network game: the
+  handshake in join_network_game() parsed the two player names from the
+  remote peer with unbounded sscanf("%s"), so a hostile/buggy server could
+  smash the stack. Names are now read with "%255s" to match the 256-byte
+  buffers
+- harden the player-name copy macros (strcpy_uscore_2_whtspace /
+  strcpy_whtspace_2_uscore, billard3d.h): they now take an explicit
+  destination size and never write past it. Previously an over-long
+  --name1/--name2 on the CLI or in ~/.foobillardrc overflowed
+  player[].name[256] at startup
+- harden load_config() (billard3d.c): the config-file reader wrote every
+  byte of ~/.foobillardrc into a fixed 20000-byte stack buffer with no
+  bounds check; a large or malformed file overflowed the stack on launch.
+  The reader now stops at the end of the buffer and warns
+- guard getenv("HOME")/getenv("USERPROFILE"): load_config(), save_config()
+  (billard3d.c) and init_history() (history.c) used the result in
+  strcpy/sprintf into fixed buffers with no NULL check, crashing when the
+  variable was unset and overflowing when it was over-long. They now
+  NULL-check and use snprintf
+- fix menu "VSync ON" being a no-op under SDL2: its body was inside a dead
+  "#if SDL_MAJOR_VERSION == 1" block, so selecting it never set
+  options_vsync. Both VSync menu entries now use SDL_GL_SetSwapInterval()
+- port from SDL 1.2 to SDL2 (Jesse Portnoy): windowing, input, timers,
+  SDL2_mixer and SDL2_net; fix default language selection and add the
+  missing en-uk manual index
+- restore mouse wheel shot-strength adjustment under SDL2: SDL2 reports
+  the wheel via SDL_MOUSEWHEEL events instead of button 4/5 presses, so
+  sys_stuff.c now translates wheel events (honoring
+  SDL_MOUSEWHEEL_FLIPPED) into MOUSE_WHEEL_UP/DOWN_BUTTON events, one
+  per notch
 - fix balls resting in a pocket jaw (or against a rail) jumping ~1cm to a
   new position between shots: at the shot->next-turn transition
   all_balls_free_place() relocated any ball whose center failed

@@ -46,8 +46,12 @@
 
 #define FREE_VIEW  (!queue_view && options_free_view_on)
 
-#define strcpy_uscore_2_whtspace(d,s) {int i; for(i=0;(d[i]=(s[i]!='_'?s[i]:' '))!=0;i++);}
-#define strcpy_whtspace_2_uscore(d,s) {int i; for(i=0;(d[i]=(s[i]!=' '?s[i]:'_'))!=0;i++);}
+/* Bounded copies: translate '_' <-> ' ' while copying at most n-1 chars into
+ * d, always NUL-terminating. n is the size of the destination buffer. These
+ * back the network/CLI/config player-name paths, so an over-long name must
+ * not run past the destination. */
+#define strcpy_uscore_2_whtspace(d,s,n) {int i; for(i=0;i<(n)-1 && s[i]!=0;i++) d[i]=(s[i]!='_'?s[i]:' '); d[i]=0;}
+#define strcpy_whtspace_2_uscore(d,s,n) {int i; for(i=0;i<(n)-1 && s[i]!=0;i++) d[i]=(s[i]!=' '?s[i]:'_'); d[i]=0;}
 
 #define queue_point_x  (player[act_player].cue_x)
 #define queue_point_y  (player[act_player].cue_y)

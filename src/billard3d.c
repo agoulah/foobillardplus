@@ -1328,12 +1328,12 @@ void process_option(enum optionType act_option)
            human_player_roster.player[1].queue_view=(optarg[0]=='a')?0:1;
            break;
        case OPT_NAME1:
-           strcpy_uscore_2_whtspace(human_player_roster.player[0].name,optarg);
-           strcpy_uscore_2_whtspace(player[0].name,optarg);
+           strcpy_uscore_2_whtspace(human_player_roster.player[0].name,optarg,256);
+           strcpy_uscore_2_whtspace(player[0].name,optarg,256);
            break;
        case OPT_NAME2:
-           strcpy_uscore_2_whtspace(human_player_roster.player[1].name,optarg);
-           strcpy_uscore_2_whtspace(player[1].name,optarg);
+           strcpy_uscore_2_whtspace(human_player_roster.player[1].name,optarg,256);
+           strcpy_uscore_2_whtspace(player[1].name,optarg,256);
            break;
        case OPT_8BALL:
            set_gametype( GAME_8BALL );
@@ -1842,17 +1842,29 @@ void load_config( char *** confv, int * confc, char ** argv, int argc )
     str=allstr;
 
 #ifdef USE_WIN //HS
-    sprintf(filename,"%s\\.foobillardrc",getenv("USERPROFILE"));
+    const char * homedir = getenv("USERPROFILE");
+    if( homedir==NULL ) homedir=".";
+    snprintf(filename,sizeof(filename),"%s\\.foobillardrc",homedir);
 #elif defined(__APPLE__)
-    sprintf(filename,"%s/Library/Preferences/org.foobillard.Foobillard--",getenv("HOME"));
+    const char * homedir = getenv("HOME");
+    if( homedir==NULL ) homedir=".";
+    snprintf(filename,sizeof(filename),"%s/Library/Preferences/org.foobillard.Foobillard--",homedir);
 #else
-    sprintf(filename,"%s/.foobillardrc",getenv("HOME"));
+    const char * homedir = getenv("HOME");
+    if( homedir==NULL ) homedir=".";
+    snprintf(filename,sizeof(filename),"%s/.foobillardrc",homedir);
 #endif
     fprintf(stderr,"Use config-file: %s\n",filename);
     if( (f=fopen(filename,"rb")) != NULL ){
+        char * const strend = allstr + sizeof(allstr) - 1;  // last writable byte (reserve for NUL)
         do{
+            if( str+2 > strend ) break;   // no room left for another entry
             str[0]='-'; str[1]='-';
             for( i=2 ; (c=fgetc(f))!='\n' && c!=EOF ; i++ ){
+                if( str+i >= strend ){    // config larger than the buffer: stop before overflow
+                    fprintf(stderr,"Warning: config-file %s too large, ignoring the rest\n",filename);
+                    c=EOF; break;
+                }
                 if( c!=' ' && c!=0x13 && c!=0x0A ) str[i]=c;
                 else {
                     str[i]=0;
@@ -1902,7 +1914,7 @@ void write_rc(FILE * f, int opt, char * arg)
 
     if( arg!=NULL ){
         char argstr[256];
-        strcpy_whtspace_2_uscore(argstr,arg);
+        strcpy_whtspace_2_uscore(argstr,arg,256);
         fprintf(f,"%s=%s\n",long_options[i].name,argstr);
     } else {
         fprintf(f,"%s\n",long_options[i].name);
@@ -1921,11 +1933,17 @@ void save_config(void)
     char str[256];
 
 #ifdef USE_WIN //HS
-    sprintf(filename,"%s\\.foobillardrc",getenv("USERPROFILE"));
+    const char * homedir = getenv("USERPROFILE");
+    if( homedir==NULL ) homedir=".";
+    snprintf(filename,sizeof(filename),"%s\\.foobillardrc",homedir);
 #elif defined(__APPLE__)
-    sprintf(filename,"%s/Library/Preferences/org.foobillard.Foobillard--",getenv("HOME"));
+    const char * homedir = getenv("HOME");
+    if( homedir==NULL ) homedir=".";
+    snprintf(filename,sizeof(filename),"%s/Library/Preferences/org.foobillard.Foobillard--",homedir);
 #else
-    sprintf(filename,"%s/.foobillardrc",getenv("HOME"));
+    const char * homedir = getenv("HOME");
+    if( homedir==NULL ) homedir=".";
+    snprintf(filename,sizeof(filename),"%s/.foobillardrc",homedir);
 #endif
     if((f=fopen(filename,"wb"))==NULL){
         //can't write to %s - check rights\n
@@ -6899,8 +6917,8 @@ int host_network_game(void)
     player[1].queue_view=0;
     player[0].queue_view=1;
 
-    strcpy_whtspace_2_uscore(name1,player[0].name);
-    strcpy_whtspace_2_uscore(name2,player[1].name);
+    strcpy_whtspace_2_uscore(name1,player[0].name,256);
+    strcpy_whtspace_2_uscore(name2,player[1].name,256);
 #ifdef VMATH_SINGLE_PRECISION
     sprintf(net_data,"%i %i %f %i %s %s",options_jump_shots,gametype,options_table_size,options_maxp_carambol,name1,name2);
 #else
@@ -7007,12 +7025,12 @@ int join_network_game(void)
      return (0);
     }
 #ifdef VMATH_SINGLE_PRECISION
-    sscanf(net_data,"%i %i %f %i %s %s",&options_jump_shots,(int *)&gametype,&options_table_size,&options_maxp_carambol,name1,name2);
+    sscanf(net_data,"%i %i %f %i %255s %255s",&options_jump_shots,(int *)&gametype,&options_table_size,&options_maxp_carambol,name1,name2);
 #else
-    sscanf(net_data,"%i %i %lf %i %s %s",&options_jump_shots,(int *)&gametype,&options_table_size,&options_maxp_carambol,name1,name2);
+    sscanf(net_data,"%i %i %lf %i %255s %255s",&options_jump_shots,(int *)&gametype,&options_table_size,&options_maxp_carambol,name1,name2);
 #endif
-    strcpy_uscore_2_whtspace(player[0].name,name1);
-    strcpy_uscore_2_whtspace(player[1].name,name2);
+    strcpy_uscore_2_whtspace(player[0].name,name1,256);
+    strcpy_uscore_2_whtspace(player[1].name,name2,256);
     textObj_setText(player[0].text, player[0].name);
     textObj_setText(player[1].text, player[1].name);
     set_gametype( gametype );  
@@ -7579,23 +7597,18 @@ void menu_cb( int id, void * arg , VMfloat value)
         break;
 #endif
     case MENU_ID_VSYNC_ON:
-    	   //compile without errors, if SDL is < Version 10 at compile time
-#if SDL_MAJOR_VERSION == 1 && SDL_MINOR_VERSION == 2 && SDL_PATCHLEVEL > 9
         if(vsync_supported()) {
-     	    options_vsync = 1;
-          if (SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, 1) < 0) { // since SDL v1.2.10
-            fprintf(stderr, "SDL_GL_SWAP_CONTROL error: %s\n", SDL_GetError());
-          }
+            options_vsync = 1;
+            if (SDL_GL_SetSwapInterval(1) < 0) {
+                fprintf(stderr, "SDL_GL_SetSwapInterval error: %s\n", SDL_GetError());
+            }
         }
-#endif
-    	break;
+        break;
     case MENU_ID_VSYNC_OFF:
-    	   options_vsync = 0;
-#if SDL_MAJOR_VERSION == 1 && SDL_MINOR_VERSION == 2 && SDL_PATCHLEVEL > 9
-          if (SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, 0) < 0) { // since SDL v1.2.10
-            fprintf(stderr, "SDL_GL_SWAP_CONTROL error: %s\n", SDL_GetError());
-          }
-#endif
+        options_vsync = 0;
+        if (SDL_GL_SetSwapInterval(0) < 0) {
+            fprintf(stderr, "SDL_GL_SetSwapInterval error: %s\n", SDL_GetError());
+        }
         break;
     case MENU_ID_RGSTEREO_ON:
         options_rgstereo_on=1;
