@@ -125,6 +125,9 @@ static int frametime_ms = 40;
 static MATH_ALIGN16 GLuint table_obj = 0;
 static MATH_ALIGN16 GLfloat Xrot = -70.0, Yrot = 0.0, Zrot = 0.0, Zrot_check = 0.0;
 static MATH_ALIGN16 GLfloat Xque = -87.0, Zque = 0.0;
+static GLfloat Xque_base = -87.0;  /* elevation the player chose; check_cue() raises
+                                      Xque above it when the cue would clip a ball
+                                      or a cushion and lowers it back when free */
 static MATH_ALIGN16 GLfloat Xrot_offs=0.0, Yrot_offs=0.0, Zrot_offs=0.0;
 
 int b1_hold = 0;
@@ -2331,72 +2334,41 @@ VMfloat angle_pm90ud(VMfloat ang)
 ************************************************************************/
 
 void check_cue(void) {
+/* enforce the physical cue: Xque is raised above the player-chosen
+   Xque_base when the stick would clip an object ball or a cushion for
+   the current aim/english, and lowered back to it when the way is
+   free. (The old implementation was dead code behind an always-off
+   ifdef, which is why the cue used to clip through nearby balls.) */
+   VMvect aim;
+   VMfloat need;
+   int i;
 
-#ifdef CUEING_DOESNT_GET_STUCK_BY_BORDER_ANY_MORE
-   int cue_ball = CUE_BALL_IND; // index cue-ball
-   int i; //loop
-   VMvect dir,cue_start_bande,nx,ny,pos,hitpoint;
-   //VMvect dir,cue_start,cue_start_bande,cue_start_ball,nx,ny,pos,hitpoint;
-   VMfloat x,y;
-
-   //if(queue_view) { //change nothing, if not in cue view (don't activate this. Only for debugging)
-   //    return;
-   //}
-   dir = vec_xyz(MATH_SIN(Zque*M_PI/180.0)*MATH_SIN(Xque*M_PI/180.0),
-                 MATH_COS(Zque*M_PI/180.0)*MATH_SIN(Xque*M_PI/180.0),
-                 MATH_COS(Xque*M_PI/180.0));
-   nx = vec_unit(vec_cross(vec_ez(),dir));  /* parallel to table */
-   ny = vec_unit(vec_cross(nx,dir));        /* orthogonal to dir and nx */
-   hitpoint = vec_add(vec_scale(nx,queue_point_x),vec_scale(ny,queue_point_y));
-   pos = vec_add(balls.ball[cue_ball].r,hitpoint);
-   //pos = vec_add(balls.ball[cue_ball].r,vec_scale(dir,queue_offs));
-   cue_start_bande = vec_add(pos,vec_scale(dir,0.4)); // start for cue check for bande
-   //cue_start_ball = vec_add(pos,vec_scale(dir,QUEUE_L/2)); // start for cue check for ball (half length)
-   //cue_start = vec_add(pos,vec_scale(dir,0.1)); // start for cue check for cue in ball
-   //cue_start = vec_add(pos,dir); // start for cue check for cue in ball
-   //cue_end = vec_add(pos,vec_scale(dir,QUEUE_L)); // end of cue
-   if(Xque-queue_point_y*15.0 < -87.0) Xque = -87.0+queue_point_y*15.0;  //cue not under this values allowed/possible
-   if(fabs(cue_start_bande.x)+fabs(queue_point_y*15.0) > TABLE_W/2.0) {
-       x = -74.0-((TABLE_W/2.0-(fabs(balls.ball[cue_ball].r.x)+BALL_D/2.0))*55.0);
-       if(x > -78.5 && queue_point_y > 0.0) {
-          queue_point_y = 0.0;
-       }
-       x -= angle_pm90lr(Zque);
-       if(queue_point_y > 0.0) {
-           x += queue_point_y*((TABLE_W/2.0-fabs(balls.ball[cue_ball].r.x))*1450.0);
-       } else {
-           x += queue_point_y*500.0;
-       }
-       if(Xque < x) {
-         Xque = x;
-       }
-   } else if(fabs(cue_start_bande.y)+fabs(queue_point_y*15.0) > TABLE_L/2.0 ) {
-       y = -74.0-((TABLE_L/2.0-(fabs(balls.ball[cue_ball].r.y)+BALL_D/2.0))*55.0);
-       if(y > -78.5 && queue_point_y > 0.0) {
-          queue_point_y = 0.0;
-       }
-       y -= angle_pm90ud(Zque);
-       if(queue_point_y > 0.0) {
-           y += queue_point_y*((TABLE_L/2.0-fabs(balls.ball[cue_ball].r.y))*1450.0);
-       } else {
-           y += queue_point_y*500.0;
-       }
-       if(Xque < y) {
-         Xque = y;
-       }
+   if( balls_moving || player[act_player].is_net ) return;
+   aim = vec_xyz(MATH_SIN(Zque*M_PI/180.0),MATH_COS(Zque*M_PI/180.0),0.0);
+   /* an english setting the cue cannot be stroked at (blocked by a rail
+      or a frozen ball even at maximum elevation) is not allowed: pull
+      the hit point back towards the centre until it is playable again.
+      Draw/follow first - the vertical offset is what buries the stick;
+      side spin only if that alone is not enough. AI shots are planned
+      against the same constraint and are left untouched here. */
+   if( !player[act_player].is_AI ){
+      for( i=0; i<48 &&
+           !cue_english_playable(&balls,CUE_BALL_IND,aim,queue_point_x,queue_point_y);
+           i++ ){
+         if( fabs(queue_point_y) > 0.0005 ){
+            queue_point_y *= 0.8;
+         } else if( fabs(queue_point_x) > 0.0005 ){
+            queue_point_y = 0.0;
+            queue_point_x *= 0.8;
+         } else {
+            queue_point_x = 0.0;
+            queue_point_y = 0.0;
+            break;
+         }
+      }
    }
-   //check collision for cue in ball
-   //fprintf(stderr,"cue s %f %f\n",cue_start_ball.x,cue_start_ball.y);
-   //fprintf(stderr,"cue m %f %f\n",cue_start_ball.x,cue_start_ball.y);
-   for(i=0;i<balls.nr;i++) {
-      if(i!=cue_ball) {
-         //if(vec_abs(vec_diff(balls.ball[cue_ball].r,balls.ball[i].r))>(balls.ball[cue_ball].d+balls.ball[i].d)/2.0 || (!balls.ball[i].in_game)) {
-         if(fabs(cue_start_bande.x) > fabs(balls.ball[i].r.x)) {
-             //fprintf(stderr,"Ball %f %f\n",balls.ball[i].r.x,balls.ball[i].r.y);
-        }
-     }
-   }
-#endif
+   need = cue_min_Xque(&balls,CUE_BALL_IND,aim,queue_point_x,queue_point_y);
+   Xque = (Xque_base>need) ? Xque_base : need;
 }
 
 /***********************************************************************
@@ -2785,6 +2757,18 @@ void copy_balls( BallsType * balls1, BallsType * balls2 )
  *             The shoot with the cue (german: queue)                  *
  ***********************************************************************/
 
+/* the shot the AI planned: queue_shot() restores it right before the
+** stroke, so user input during the cue animation (view drags, english
+** or cue-butt controls, ...) cannot corrupt an AI shot */
+static struct {
+    int valid;
+    GLfloat plan_Zque;
+    GLfloat plan_Xque;
+    VMfloat plan_strength;
+    VMfloat plan_cue_x;
+    VMfloat plan_cue_y;
+} ai_planned_shot = {0,0.0,0.0,0.0,0.0,0.0};
+
 void queue_shot(void) {
     VMvect dir, nx, ny, hitpoint;
     int i;
@@ -2795,6 +2779,17 @@ void queue_shot(void) {
 #else
      if( !balls_moving && !player[0].winner && !player[1].winner){
 #endif
+        /* an AI shot is always played exactly as planned - user input
+           during the stroke animation must not change it */
+        if( player[act_player].is_AI && ai_planned_shot.valid ){
+            Zque=ai_planned_shot.plan_Zque;
+            Xque=ai_planned_shot.plan_Xque;
+            player[act_player].strength=ai_planned_shot.plan_strength;
+            player[act_player].cue_x=ai_planned_shot.plan_cue_x;
+            player[act_player].cue_y=ai_planned_shot.plan_cue_y;
+        }
+        ai_planned_shot.valid=0;
+
         /* backup actual ball setup */
         copy_balls(&balls,&bakballs);
         dir = vec_xyz(MATH_SIN(Zque*M_PI/180.0)*MATH_SIN(Xque*M_PI/180.0),
@@ -2850,6 +2845,9 @@ void do_computer_move( int doit )
        g_shot_due=1;
        return;
     }
+    /* start from a clean cue: no leftover english from the last player */
+    queue_point_x=0.0;
+    queue_point_y=0.0;
     ai_set_err(player[act_player].err);
     dir = ai_get_stroke_dir(&balls,&walls,&player[act_player]);
 
@@ -2858,6 +2856,12 @@ void do_computer_move( int doit )
     Zque = atan2(dir.x,dir.y)/M_PI*180.0;  // don't change the atan2 here to fastmath
     check_cue();
     if(doit){
+        ai_planned_shot.valid=1;
+        ai_planned_shot.plan_Zque=Zque;
+        ai_planned_shot.plan_Xque=Xque;
+        ai_planned_shot.plan_strength=player[act_player].strength;
+        ai_planned_shot.plan_cue_x=player[act_player].cue_x;
+        ai_planned_shot.plan_cue_y=player[act_player].cue_y;
         shoot( !queue_view );
     }
     comp_dir=dir;
@@ -3565,20 +3569,19 @@ void MouseMotion(int x, int y)
               start_x = x;
               start_y = y;
             }
-        } else if ( control__english ){
+        } else if ( control__english && !player[act_player].is_AI && !player[act_player].is_net ){
             setenglish((x-scaling_start2)*0.0005, (y-scaling_start)*0.0005);
             scaling_start = y;
             scaling_start2 = x;
             check_cue(); // check here for correct cue position to ball table border
-        } else if (control__cue_butt_updown){
+        } else if (control__cue_butt_updown && !player[act_player].is_AI && !player[act_player].is_net){
             if(queue_view) toggle_queue_view();
             Xoffs =  (VMfloat)(y-start_y)*0.02*acc;
             Xoffs +=  (VMfloat)(y-start_y)*fabs(y-start_y)*0.01*acc;
-            Xque-=Xoffs;
+            Xque_base-=Xoffs;
+            if ( Xque_base > 0.0  ) Xque_base = 0.0;
+            if ( Xque_base < -90.0 ) Xque_base = -90.0;
             check_cue(); // check here for correct cue position to ball table border
-            if ( Xque > 0.0  ) {
-               Xque = 0.0;
-            }
         } else if (control__fov){ //special key handling FOV
             setfov((y-scaling_start)*0.05);
         }
@@ -3614,7 +3617,7 @@ void MouseMotion(int x, int y)
             Zrot = angle_pm360(Zrot+Zoffs);
             Xrot_offs -= Xoffs;
             Zrot_offs -= Zoffs;
-            if( queue_view ){
+            if( queue_view && !player[act_player].is_AI && !player[act_player].is_net ){
                 Xque=Xrot;
                 Zque=Zrot;
             }
@@ -4331,6 +4334,7 @@ void DisplayFunc( void )
              //fprintf(stderr,"evaluate_last_move is called\n");
              evaluate_last_move( player, &act_player, &balls, &queue_view);
              Xque = -87.0;  // reset the cue-pos
+             Xque_base = -87.0;
              if(old_actplayer != act_player) {
              	  roundcounter++;
 #ifdef NETWORKING
@@ -4450,6 +4454,10 @@ void DisplayFunc( void )
              queue_offs=0.06;
          }
      }
+
+     /* keep the physical cue clear of balls and cushions for the current
+        aim, whatever input path changed it (drag, keys, birdview, ...) */
+     check_cue();
 
    if( old_queue_view==1 && queue_view==0  ) { /* this is sloppy and ugly */
        /* set free_view_pos to actual view */
@@ -5414,9 +5422,9 @@ void DisplayFunc( void )
        glEnable(GL_BLEND);
        glBlendFunc(GL_ONE,GL_ONE);
 
-       /* strength bar */
-       if(!(options_gamemode==options_gamemode_tournament && tournament_state.wait_for_next_match) && !player[act_player].is_AI && !balls_moving) {
-       /* disable strength bar if tournament window, player is net or ai is active and no balls where moving */
+       /* strength bar (also shown while the AI aims, so its chosen power is visible) */
+       if(!(options_gamemode==options_gamemode_tournament && tournament_state.wait_for_next_match) && !balls_moving) {
+       /* disable strength bar if tournament window and no balls where moving */
     	   myRect2D( -0.5, -0.755, 0.5, -0.675, 0.25, 0.2 );
            myRect2D( -0.5, -0.745,-0.5+queue_strength, -0.685, 0.0, 0.3 );
            glPushMatrix();
@@ -5446,7 +5454,7 @@ void DisplayFunc( void )
            textObj_draw(stbar_text_obj);    //Draw the strength adjustment percent
            glPopMatrix();
            //Show the control Buttons on the Screen ?
-           if(options_show_buttons && !player[act_player].is_net) {
+           if(options_show_buttons && !player[act_player].is_net && !player[act_player].is_AI) {
              glPushMatrix();
              //glColor3f(1.0,1.0,1.0);   // Begin draw the buttons
              glTranslatef(-0.72,-0.72,0.0);
@@ -5684,6 +5692,32 @@ void DisplayFunc( void )
              glCallList(fov_id);
            }
          }
+       }
+       // show the english (draw/follow/side spin) the AI chose while it aims and strokes
+       if( !balls_moving && player[act_player].is_AI &&
+           (fabs(queue_point_x)>0.0001 || fabs(queue_point_y)>0.0001) ){
+           static const GLshort VertexData15[] = {0,0,0,0,256,0,256,0,0,256,256,0};
+           static const GLshort TexData15[] = {0,1,0,0,1,1,1,0};
+           static const GLfloat ColorData15[] = {0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9};
+           glPushMatrix();
+           glTranslatef(-0.95,0.15,0.0);
+           glScalef(2.0/win_width,2.0/win_height,1.0);
+           glBindTexture(GL_TEXTURE_2D,englishbind); //big cue ball
+           glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+           glEnableClientState(GL_VERTEX_ARRAY);
+           glEnableClientState(GL_COLOR_ARRAY);
+           glTexCoordPointer(2,GL_SHORT, 0, TexData15);
+           glVertexPointer(3, GL_SHORT, 0, VertexData15);
+           glColorPointer(3, GL_FLOAT, 0, ColorData15);
+           glDrawArrays(GL_TRIANGLE_STRIP,0,4);
+           glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+           glDisableClientState(GL_VERTEX_ARRAY);
+           glDisableClientState(GL_COLOR_ARRAY);
+           //cross at the cue contact point (same mapping as the english control)
+           glTranslatef(106.0+(queue_point_x*5300),100.0-(queue_point_y*5300),0.0);
+           glBindTexture(GL_TEXTURE_2D,kreuzbind);
+           myRect2D_texture();
+           glPopMatrix();
        }
        if(options_free_view_on && !options_birdview_on) {    // Freeview png if freeview on
          if(freeview_id == -1) {
@@ -5981,6 +6015,7 @@ void restart_game_common(void)
     Yrot = 0.0;
     Zrot = 0.0;
     Xque = -87.0;
+    Xque_base = -87.0;
     Zque = 0.0;
     Xrot_offs=0.0;
     Yrot_offs=0.0;
@@ -6272,11 +6307,11 @@ void Key( int key, int modifiers ) {
       //handling of special-special keys end
         case KSYM_DOWN:
            //cue down
-           if(control__cue_butt_updown) {
-             Xque -= step;
+           if(control__cue_butt_updown && !player[act_player].is_AI && !player[act_player].is_net) {
+             Xque_base -= step;
              step += CUESTEP;
              if(step > CUESTEPMAX) step = CUESTEPMAX;
-             if(Xque < -90.0) Xque = -90.0;
+             if(Xque_base < -90.0) Xque_base = -90.0;
              check_cue(); // check here for correct cue position to ball table border
            //place cue ball
            } else if (control__place_cue_ball && player[act_player].place_cue_ball && !balls_moving && !player[act_player].is_AI && !player[act_player].is_net) {
@@ -6293,11 +6328,12 @@ void Key( int key, int modifiers ) {
            break;
         case KSYM_UP:
            //cue up
-           if(control__cue_butt_updown) {
-             Xque += step;
+           if(control__cue_butt_updown && !player[act_player].is_AI && !player[act_player].is_net) {
+             Xque_base += step;
              step += CUESTEP;
              if(step > CUESTEPMAX) step = CUESTEPMAX;
-             if(Xque > 0.0) Xque = 0.0;
+             if(Xque_base > 0.0) Xque_base = 0.0;
+             check_cue(); // check here for correct cue position to ball table border
            //place cue ball
            } else if (control__place_cue_ball && player[act_player].place_cue_ball && !balls_moving && !player[act_player].is_AI && !player[act_player].is_net) {
                setcueball(&balls.ball[cue_ball].r, 0.0, +0.01, cue_ball);
@@ -6342,11 +6378,13 @@ void Key( int key, int modifiers ) {
       case KSYM_UP: //
             if(options_birdview_on) {
              // in birdview on, the cue is moving
-             Zque = angle_pm360(Zque);
-             if(Zque >90.0 && Zque <270.0) {
-              Zque--;
-             } else {
-              Zque++;
+             if(!player[act_player].is_AI && !player[act_player].is_net) {
+               Zque = angle_pm360(Zque);
+               if(Zque >90.0 && Zque <270.0) {
+                Zque--;
+               } else {
+                Zque++;
+               }
              }
              break;
             }
@@ -6364,12 +6402,14 @@ void Key( int key, int modifiers ) {
       case KSYM_DOWN:
             if(options_birdview_on) {
             // in birdview on, the cue is moving
-            Zque = angle_pm360(Zque);
-            if(Zque >90.0 && Zque <270.0) {
-              Zque++;
-            } else {
-              Zque--;
-             }
+            if(!player[act_player].is_AI && !player[act_player].is_net) {
+              Zque = angle_pm360(Zque);
+              if(Zque >90.0 && Zque <270.0) {
+                Zque++;
+              } else {
+                Zque--;
+              }
+            }
             break;
             }
             if(!FREE_VIEW){
@@ -6386,11 +6426,13 @@ void Key( int key, int modifiers ) {
       case KSYM_RIGHT:
             if(options_birdview_on) {
             // in birdview on, the cue is moving
-            Zque = angle_pm360(Zque);
-            if(Zque >0.0 && Zque <180.0) {
-              Zque++;
-            } else {
-              Zque--;
+            if(!player[act_player].is_AI && !player[act_player].is_net) {
+              Zque = angle_pm360(Zque);
+              if(Zque >0.0 && Zque <180.0) {
+                Zque++;
+              } else {
+                Zque--;
+              }
             }
             break;
             }
@@ -6400,7 +6442,8 @@ void Key( int key, int modifiers ) {
               if (step > STEPMAX) step = STEPMAX;
             } else {
               Zrot = angle_pm360(Zrot-freeview_step);
-              Zque += freeview_step;
+              if(!player[act_player].is_AI && !player[act_player].is_net)
+                  Zque += freeview_step;
               freeview_step += FREEVIEW_STEP1;
               if(freeview_step > FREEVIEW_STEPMAX) freeview_step = FREEVIEW_STEPMAX;
             }
@@ -6408,11 +6451,13 @@ void Key( int key, int modifiers ) {
       case KSYM_LEFT:
          if(options_birdview_on) {
          // in birdview on, the cue is moving
-         Zque = angle_pm360(Zque);
-         if(Zque >0.0 && Zque <180.0) {
-           Zque--;
-         } else {
-           Zque++;
+         if(!player[act_player].is_AI && !player[act_player].is_net) {
+           Zque = angle_pm360(Zque);
+           if(Zque >0.0 && Zque <180.0) {
+             Zque--;
+           } else {
+             Zque++;
+           }
          }
          break;
          }
@@ -6422,7 +6467,8 @@ void Key( int key, int modifiers ) {
              if (step > STEPMAX) step = STEPMAX;
          } else {
              Zrot = angle_pm360(Zrot+freeview_step);
-             Zque -= freeview_step;
+             if(!player[act_player].is_AI && !player[act_player].is_net)
+                 Zque -= freeview_step;
              freeview_step += FREEVIEW_STEP1;
              if(freeview_step > FREEVIEW_STEPMAX) freeview_step = FREEVIEW_STEPMAX;
          }
@@ -6504,6 +6550,7 @@ void Key( int key, int modifiers ) {
           }
          break;
       case KSYM_F9:
+          if(player[act_player].is_AI) break; /* no re-planning of a pending AI shot */
 #ifdef NETWORKING
           if(!player[0].is_net && !player[1].is_net && !wait_key && !active_net_game) {
 #endif

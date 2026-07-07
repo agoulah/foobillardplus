@@ -83,6 +83,11 @@ void create_snooker_scene ( BallsType * balls );   /* snooker */
 
 int balls_in_game( BallsType * balls, int full_half );
 
+/* lowest cue elevation (Xque degrees, -90=flat .. 0=vertical) at which
+** the cue stick clears all object balls and the cushions */
+VMfloat cue_min_Xque( BallsType * balls, int cueind, VMvect aim, VMfloat qx, VMfloat qy );
+int cue_english_playable( BallsType * balls, int cueind, VMvect aim, VMfloat qx, VMfloat qy );
+
 void setfunc_create_scene( void (*func)( BallsType * balls ) );
 void setfunc_create_walls( void (*func)( BordersType * walls ) );
 void setfunc_malloc_free( void * (*func_malloc)( size_t size ), void (*func_free)( void * ptr ) );

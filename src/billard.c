@@ -1007,3 +1007,101 @@ int balls_in_game( BallsType * balls, int full_half )
     }
     return nr;
 }
+
+/***********************************************************************/
+
+#define CUE_CLEARANCE 0.003          /* extra clearance between cue and obstacles */
+#define CUE_XQUE_MIN  -87.0          /* default (almost horizontal) cue elevation */
+#define CUE_XQUE_MAX  -25.0          /* steepest playable elevation */
+#define CUSHION_TOP   (BALL_D/2.0)   /* cushion top above the ball centre plane */
+
+static VMfloat cue_radius_at( VMfloat t )
+/* radius of the tapered cue t metres behind the tip */
+{
+    return( QUEUE_D2/2.0+(QUEUE_D1-QUEUE_D2)/2.0*t/QUEUE_L );
+}
+
+/***********************************************************************/
+
+static int cue_position_free( BallsType * balls, int cueind, VMvect aim,
+                              VMfloat qx, VMfloat qy, VMfloat xque )
+/* does the cue at elevation xque clear all balls and the cushions?
+   The cue axis matches draw_queue()/queue_shot(): it starts at the
+   contact point (english offset qx/qy) and runs along
+   dir = aim*sin(xque) + ez*cos(xque) */
+{
+    VMvect dir, nx, ny, p0, w, closest;
+    VMfloat sinx, cosx, t;
+    int i, j;
+
+    sinx=sin(xque*M_PI/180.0);
+    cosx=cos(xque*M_PI/180.0);
+    dir=vec_add(vec_scale(aim,sinx),vec_scale(vec_ez(),cosx));
+    nx=vec_unit(vec_cross(vec_ez(),dir));
+    ny=vec_unit(vec_cross(nx,dir));
+    p0=vec_add(balls->ball[cueind].r,
+               vec_add(vec_scale(nx,qx),vec_scale(ny,qy)));
+
+    /* other balls */
+    for( i=0; i<balls->nr; i++ ){
+        if( i==cueind || !balls->ball[i].in_game ) continue;
+        w=vec_diff(balls->ball[i].r,p0);
+        t=vec_mul(w,dir);
+        if( t<0.0 ) t=0.0;
+        if( t>QUEUE_L ) t=QUEUE_L;
+        closest=vec_add(p0,vec_scale(dir,t));
+        if( vec_abs(vec_diff(balls->ball[i].r,closest)) <
+            balls->ball[i].d/2.0+cue_radius_at(t)+CUE_CLEARANCE ) return 0;
+    }
+
+    /* cushions: where the axis leaves the playfield it must clear the
+       cushion top (the axis rises along t, so the crossing is the
+       lowest point above the border) */
+    for( j=0; j<4; j++ ){
+        VMfloat border = (j<2) ? TABLE_W/2.0 : TABLE_L/2.0;
+        VMfloat pc     = (j==0) ? p0.x : ((j==1) ? -p0.x : ((j==2) ? p0.y : -p0.y));
+        VMfloat dc     = (j==0) ? dir.x : ((j==1) ? -dir.x : ((j==2) ? dir.y : -dir.y));
+        if( dc<=1.0E-6 ) continue;               /* not moving towards this border */
+        t=(border-pc)/dc;
+        if( t<0.0 || t>QUEUE_L ) continue;
+        if( p0.z+dir.z*t < CUSHION_TOP+cue_radius_at(t)+CUE_CLEARANCE ) return 0;
+    }
+    return 1;
+}
+
+/***********************************************************************/
+
+VMfloat cue_min_Xque( BallsType * balls, int cueind, VMvect aim, VMfloat qx, VMfloat qy )
+/* the lowest cue elevation (Xque, -90=flat .. 0=vertical) at which the
+   cue stick clears all object balls and the cushions for this aim
+   direction and english offset */
+{
+    VMfloat xque;
+
+    aim.z=0.0;
+    if( vec_abs(aim)<1.0E-6 ) return CUE_XQUE_MIN;
+    aim=vec_unit(aim);
+    for( xque=CUE_XQUE_MIN; xque<CUE_XQUE_MAX+0.5; xque+=1.0 ){
+        if( cue_position_free(balls,cueind,aim,qx,qy,xque) ) return xque;
+    }
+    return CUE_XQUE_MAX;
+}
+
+/***********************************************************************/
+
+int cue_english_playable( BallsType * balls, int cueind, VMvect aim, VMfloat qx, VMfloat qy )
+/* is there any playable elevation at which the cue clears all balls and
+   cushions for this aim and english offset? cue_min_Xque() falls back
+   to CUE_XQUE_MAX when nothing is free, so use this to reject english
+   settings that cannot be stroked at all */
+{
+    VMfloat xque;
+
+    aim.z=0.0;
+    if( vec_abs(aim)<1.0E-6 ) return 1;
+    aim=vec_unit(aim);
+    for( xque=CUE_XQUE_MIN; xque<CUE_XQUE_MAX+0.5; xque+=1.0 ){
+        if( cue_position_free(balls,cueind,aim,qx,qy,xque) ) return 1;
+    }
+    return 0;
+}

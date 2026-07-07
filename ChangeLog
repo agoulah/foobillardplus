@@ -1,5 +1,60 @@
 Unreleased (private fork fixes)
 ================================
+- rework the 8-ball/9-ball computer player (aiplayer.c): shot candidates
+  (pots, soft safeties, one-cushion kick shots when snookered) are now
+  played out on a copy of the table with the real physics engine and
+  rated with the same foul/win rules evaluate_last_move() applies, so
+  the AI no longer banges the cue ball at a random legal ball when no
+  clean pot exists. It avoids scratches and wrong-ball fouls, plays
+  defensively (leaves the opponent without a pot when it cannot pot
+  itself), escapes snookers via the cushions, and chooses a sensible
+  cue strength per shot instead of the fixed 0.7. Difficulty (player
+  err) still perturbs the chosen direction and strength. billmove.c
+  gained BM_simulation_begin()/end() which save/restore the move log
+  and mute sounds/ball-trace recording during AI lookahead, plus a
+  bounds check in record_move_log_event()
+- the AI now also uses real cueing technique: when a pot is found it
+  simulates draw/follow/side-english variants of the shot and keeps
+  the one that leaves the best position (the chosen cue offset goes
+  through the regular queue_point/english path, so spin transfer and
+  cushion reaction come from the normal physics). The chosen power is
+  shown on the strength bar during the AI's stroke and a cue-ball/
+  cross indicator (same graphic as the english control) appears when
+  the AI plays with spin
+- fix: the player could corrupt an AI shot by rotating the cue view,
+  using the english/cue-butt controls or the birdview/freeview aiming
+  keys while the AI stroke animation was running. The AI shot (angle,
+  elevation, strength, english) is now snapshotted in
+  do_computer_move() and restored in queue_shot() right before the
+  stroke, and the aiming inputs are ignored while an AI (or network)
+  player is at the table
+- the physical cue stick is now taken into account when aiming: the
+  old ball/cushion clearance check (check_cue) was dead code behind an
+  always-off ifdef, so the cue clipped through object balls close
+  behind the cue ball and hung inside the cushions. A real geometric
+  check (cue_min_Xque, billard.c) computes the lowest elevation at
+  which the tapered stick clears all balls and the cushion tops for
+  the current aim and english; check_cue() raises the cue above the
+  player-chosen elevation when needed and lowers it back when the way
+  is free (enforced every frame, for every input path). The elevation
+  also feeds the shot physics as before (steeper cue = less forward
+  speed, changed spin plane), and playing draw near a rail now forces
+  the realistic elevated stroke instead of being silently ignored
+- the AI plans with the same constraint: every simulated candidate
+  shot is played at the elevation the cue would really need, so shots
+  over a blocking ball or away from a rail are planned - and missed or
+  made - with the true elevated-stroke physics. Kick-shot escapes got
+  a finer aim/strength grid since the cushion rebound depends on speed
+- english settings the cue cannot physically be stroked at are now
+  rejected for human players too: when no playable elevation exists
+  for the requested hit point (cue ball frozen to a rail with draw,
+  or a ball frozen right behind the stroke line), check_cue() pulls
+  the hit point back towards the centre until the stick clears -
+  draw/follow is reduced first, side spin only if that is not enough
+  (cue_english_playable(), billard.c). This restores the intent of
+  the old dead check_cue() code that used to zero the draw component
+  near rails, but based on the real stick geometry: draw near (not
+  frozen to) a rail stays available via the visible elevated stroke
 - fix broken text entry on non-US keyboard layouts (AZERTY, QWERTZ, ...):
   menu textfields (player name, host, port) relied on the SDL 1.2-era
   keysym->ASCII hack, which mistranslates shifted/layout-remapped

@@ -92,6 +92,11 @@ typedef struct{
 
 void       BM_reset_move_info(void);
 
+/* AI shot simulation: begin saves the current move log and mutes
+** sound/path side effects, end restores everything */
+void       BM_simulation_begin(void);
+void       BM_simulation_end(void);
+
 int        BM_get_balls_out_half(void);
 int        BM_get_balls_out_full(void);
 int        BM_get_balls_out_total(void);  // halves and full (no black or white)

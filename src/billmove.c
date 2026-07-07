@@ -59,7 +59,7 @@ struct BallEvent{
     enum event_type event;
 };
 
-static struct{
+struct MoveLog{
     int timestep_nr;
     VMfloat duration;
     VMfloat duration_last;
@@ -69,7 +69,28 @@ static struct{
     int out_black;
     int eventnr;
     struct BallEvent event[MAX_EVENT_NR];
-} move_log;
+};
+
+static struct MoveLog move_log;
+static struct MoveLog move_log_backup;  /* saved state while the AI simulates shots */
+static int bm_simulating=0;             /* 1 while the AI runs lookahead shots (no sound, no ball paths) */
+
+/***********************************************************************/
+
+void BM_simulation_begin(void)
+{
+    move_log_backup=move_log;
+    bm_simulating=1;
+    BM_reset_move_info();
+}
+
+/***********************************************************************/
+
+void BM_simulation_end(void)
+{
+    move_log=move_log_backup;
+    bm_simulating=0;
+}
 
 /***********************************************************************/
 
@@ -385,6 +406,7 @@ BallType * BM_get_ball_by_nr( int nr, BallsType *pballs )
 void record_move_log_event( enum event_type event, int nr, int nr2, BallsType *pballs, VMfloat timeoffs )
 {
 	   //fprintf(stderr,"New log-entry %i\n",move_log.eventnr);
+    if( move_log.eventnr >= MAX_EVENT_NR ) return;
     move_log.event[move_log.eventnr].event=event;
 
     move_log.event[move_log.eventnr].ballnr=nr;
@@ -704,7 +726,7 @@ void remove_balls_from_game( BallsType *balls, struct Player * player)
           if( balls->ball[i].r.z < -0.1 || fabs(balls->ball[i].r.x) >(options_table_size/2/1.2) || fabs(balls->ball[i].r.y) >(options_table_size/1.525)){
           //if(balls->ball[i].in_hole) fprintf(stderr,"Hole\n");
 #ifdef USE_SOUND
-            if(!balls->ball[i].in_hole) {
+            if(!bm_simulating && !balls->ball[i].in_hole) {
                if(options_gamemode==options_gamemode_tournament && player[0].is_AI && player[1].is_AI) {
                   //nosound
                } else {
@@ -879,7 +901,7 @@ int proceed_dt(BallsType *balls, BordersType *borders, VMfloat dt, struct Player
         if( vec_abs(balls->ball[i].v)!=0 || vec_abs(balls->ball[i].w)!=0 ){
            balls_moving=1;
            // we allways keep the moves, but only draws it, if options_balltrace is set
-           BM_add2path(&balls->ball[i] ); //draw the ball line
+           if(!bm_simulating) BM_add2path(&balls->ball[i] ); //draw the ball line
         }
 
         /* calc accel 3D */
@@ -975,7 +997,7 @@ int proceed_dt(BallsType *balls, BordersType *borders, VMfloat dt, struct Player
             dr=vec_diff(balls->ball[i].r,borders->hole[j-1].pos);
             dr.z=0;
 #ifdef USE_SOUND
-            if(!balls->ball[i].soundplayed) {
+            if(!bm_simulating && !balls->ball[i].soundplayed) {
                if(options_gamemode==options_gamemode_tournament && player[0].is_AI && player[1].is_AI) {
                   //nosound
                } else {
